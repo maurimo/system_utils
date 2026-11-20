@@ -1,0 +1,52 @@
+[Unit]
+Description=Persistent reverse SSH tunnel (B:REMOTE_PORT -> this host's sshd)
+Documentation=file:///etc/reverse-tunnel/README.md
+Wants=network-online.target
+After=network-online.target
+# never give up restarting
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+EnvironmentFile=/etc/reverse-tunnel/tunnel.conf
+# The private key is handed to the service as a systemd credential:
+# it stays root-only (0600) on disk and appears at %d/key for the service only.
+LoadCredential=key:/etc/reverse-tunnel/id_ed25519
+DynamicUser=yes
+ExecStart=/usr/bin/ssh -F none -N -T \
+    -i %d/key \
+    -o BatchMode=yes \
+    -o IdentitiesOnly=yes \
+    -o ExitOnForwardFailure=yes \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
+    -o ConnectTimeout=20 \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=/etc/reverse-tunnel/known_hosts \
+    -o UpdateHostKeys=no \
+    -p ${REMOTE_SSH_PORT} \
+    -R ${REMOTE_BIND}:${REMOTE_PORT}:${LOCAL_HOST}:${LOCAL_PORT} \
+    ${REMOTE_USER}@${REMOTE_HOST}
+Restart=always
+RestartSec=15
+
+# Hardening (ssh only needs the network and to read its key/known_hosts)
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

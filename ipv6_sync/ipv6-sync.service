@@ -1,0 +1,43 @@
+[Unit]
+Description=Keep DuckDNS AAAA and Linksys IPv6 firewall rule on this host's stable IPv6 address
+Documentation=file:///etc/ipv6-sync/README.md
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+EnvironmentFile=/etc/ipv6-sync/ipv6-sync.conf
+# Secrets stay root-only (0600) on disk; the service sees them under $CREDENTIALS_DIRECTORY
+LoadCredential=duckdns_token:/etc/ipv6-sync/duckdns_token
+LoadCredential=router_password:/etc/ipv6-sync/router_password
+DynamicUser=yes
+StateDirectory=ipv6-sync
+ExecStart=/usr/local/sbin/ipv6-sync
+Restart=always
+RestartSec=30
+
+# Hardening: needs only the network, netlink (ip monitor) and its state directory
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
